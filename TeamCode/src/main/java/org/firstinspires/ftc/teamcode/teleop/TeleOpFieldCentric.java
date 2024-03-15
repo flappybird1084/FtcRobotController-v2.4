@@ -293,7 +293,7 @@ public class TeleOpFieldCentric extends LinearOpMode {
             if (doNotChangeLedsUtil[0] < runtime.seconds()) {
                 distance = dist.getDistance(DistanceUnit.CM);
 
-                if (distance > 4.5) { // No pixels
+                if (distance > 5) { // No pixels
                     ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.CP1_2_END_TO_END_BLEND_1_TO_2);
                 } else if (distance > 1.5) { // One pixel only
                     ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_FOREST_PALETTE);
