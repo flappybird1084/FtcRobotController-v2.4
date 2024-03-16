@@ -33,9 +33,16 @@ public class TeleOpFieldCentric extends LinearOpMode {
         final DcMotor spaghettiIntake = hardwareMap.get(DcMotor.class, "spaghettiIntake");
 
         // Grab distance sensor
+        // This is technically also the color sensor, it is the same hardware device
+        // That's why it is called "color" in the hardware map
+        // Note for wiring: This plug into the I2C port! NOT the digital port
         final DistanceSensor dist = hardwareMap.get(DistanceSensor.class, "color");
 
         // Grab LED driver
+        // The LED Driver class is really just a wrapper for the Servo class, because the different patterns of the LED Driver just correspond to Servo positions (pulse width)
+        // You can find a layout diagram on Page 11 of the REV Documentation for the LED Driver:
+        // https://www.revrobotics.com/content/docs/REV-11-1105-UM.pdf
+        // Note for wiring: Plug into servo port
         final RevBlinkinLedDriver ledDriver = hardwareMap.get(RevBlinkinLedDriver.class, "ledDriver");
 
         // Superspeed use
@@ -67,12 +74,19 @@ public class TeleOpFieldCentric extends LinearOpMode {
         drive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         // MET in seconds for the thread to NOT change the leds
+        // Essentially, when an indicator pattern needs to be shown, it will be show for x seconds, where x is this variable
+        // After x seconds, the LED go will back to the normal (pixel status) mode
         // Is a final array because it needs to be accessed in inner class (threads)
         final double[] doNotChangeLedsUtil = {0};
 
-        double distance; // For use in led
+        // Note for Parinaz: The Distance sensor is mounted on a hole in the back of the box (the intake pixel box)
+        // The distance is the distance from the back of the box to the pixel
+        // When no pixel is in the box, the distance sensor will be able to see out opening in the front
+        // When a pixel is located in the box, the distance sensor will see that something is blocking it
+        // See the if block in the while loop for how it works
+        double distance; // For use in led, literally the distance in CM
 
-        // Viper slide control mode for telemetry
+        // Viper slide control mode for telemetry (we can't see the viper slide mode on the dashboard, that's why this was made)
         // Is a final array because it needs to be accessed in inner class (threads)
         final boolean[] viperSlideAlternativeControl = {false};
 
@@ -115,6 +129,7 @@ public class TeleOpFieldCentric extends LinearOpMode {
                         ViperSlide2.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
                         viperSlideAlternativeControl[0] = true;
 
+                        // Strobe red when switching into alt mode, for one second
                         doNotChangeLedsUtil[0] = runtime.seconds() + 1;
                         ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.STROBE_RED);
                     }
@@ -142,6 +157,7 @@ public class TeleOpFieldCentric extends LinearOpMode {
                         this.encoderDrivingTarget2 = 0;
                         viperSlideAlternativeControl[0] = false;
 
+                        // Strobe white for 1 second when going back into normal (PID) mode
                         doNotChangeLedsUtil[0] = runtime.seconds() + 1;
                         ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.STROBE_WHITE);
 
@@ -202,17 +218,18 @@ public class TeleOpFieldCentric extends LinearOpMode {
             }
         };
 
+        // This is still in INIT mode, we set a "ready to start" pattern for the LED
         ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.CP1_BREATH_FAST);
 
-        waitForStart();
+        waitForStart(); // Start has been called
+
         if (isStopRequested()) return;
 
         vsController.start(); // Activate vs Controller
 
 
-
-        doNotChangeLedsUtil[0] = runtime.seconds() + 1;
-        ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.STROBE_GOLD);
+        doNotChangeLedsUtil[0] = runtime.seconds() + 1; // This to show the below pattern for one second
+        ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.STROBE_GOLD); // "Go" pattern
 
 
 
@@ -245,6 +262,7 @@ public class TeleOpFieldCentric extends LinearOpMode {
                             -gamepad1.right_stick_x*0.5 // Rotation go less
                     )
             );
+
             // Spinny (Intake wheel) control
             // A - pixel in
             if(gamepad2.a){
@@ -289,8 +307,8 @@ public class TeleOpFieldCentric extends LinearOpMode {
                 spaghettiIntake.setPower(0);
             }
 
-            // LED stuff
-            if (doNotChangeLedsUtil[0] < runtime.seconds()) {
+            // LED stuff for seeing if any pixels are in the box
+            if (doNotChangeLedsUtil[0] < runtime.seconds()) { // Only show if there is no set pattern (such as the start and go patterns)
                 distance = dist.getDistance(DistanceUnit.CM);
 
                 if (distance > 5) { // No pixels
@@ -303,6 +321,8 @@ public class TeleOpFieldCentric extends LinearOpMode {
             }
 
             // Reset LED
+            // Sometimes, if you press start too quickly after init, the LEDs will get suspended in the "idle" state
+            // Use this to "wake up" the LEDs, will display the "go" pattern
             if (gamepad1.x) {
                 doNotChangeLedsUtil[0] = runtime.seconds() + 1;
                 ledDriver.setPattern(RevBlinkinLedDriver.BlinkinPattern.STROBE_GOLD);
@@ -316,6 +336,8 @@ public class TeleOpFieldCentric extends LinearOpMode {
             telemetry.addData("y", poseEstimate.getY());
             telemetry.addData("heading", poseEstimate.getHeading());
             telemetry.addData("distance", dist.getDistance(DistanceUnit.CM));
+
+            // VS telemetry has been added! Copied from the old Teleop
             if (viperSlideAlternativeControl[0]) {
                 telemetry.addData("Viper Slide Control Mode","🆘 ALT EXTEND MODE");
             } else {
